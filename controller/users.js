@@ -6,8 +6,14 @@ const smtpTransport = require('nodemailer-smtp-transport');
 const bcrypt = require('bcrypt');
 const validate = require('../helper/validate');
 const config = require('../config');
-
+var multer = require('multer')
+var upload = multer({ dest: 'uploads/' })
+var request = require('superagent');
 const saltRounds = 5;
+
+var mailchimpInstance = 'us14',
+    listUniqueId = 'd974dea8d2',
+    mailchimpApiKey = '5a5a25fb6be75801c68330300cf4dd11-us14';
 
 var userExclusion = {
     __v: false,
@@ -17,10 +23,10 @@ var userExclusion = {
     lastLogin: false
 };
 
-    /**
-     * POST /user/login
-     * Login users to the system .
-     */
+/**
+ * POST /user/login
+ * Login users to the system .
+ */
 
 exports.login = function (req, res) {
     var email = req.body.email;
@@ -48,12 +54,46 @@ exports.login = function (req, res) {
     });
 };
 
-    /**
-     * POST /user/register
-     * Register new users to the system .
-     */
+/**
+ * POST /user/register
+ * Register new users to the system .
+ */
 
 exports.register = function (req, res) {
+
+    request
+        .post('https://' + mailchimpInstance + '.api.mailchimp.com/3.0/lists/' + listUniqueId + '/members/')
+        .set('Content-Type', 'application/json;charset=utf-8')
+        .set('Authorization', 'Basic ' + new Buffer('any:' + mailchimpApiKey).toString('base64'))
+        .send({
+            'email_address': req.body.email,
+            'status': 'subscribed',
+            'merge_fields': {
+                'FNAME': req.body.firstName,
+                'LNAME': req.body.lastName
+            }
+        })
+        .end(function (err, response) {
+            if (response.status < 300 || (response.status === 400 && response.body.title === "Member Exists")) {
+                // res.send('Signed Up!');
+                console.log("Mail from mailchimp sent");
+            } else {
+                console.log('mailchimp mail failed :(');
+            }
+        });
+
+    // var upload = multer().single('avatar');
+    // console.log("File received");
+    // upload(req, res, function (err) {
+    //     if (err) {
+    //         // An error occurred when uploading 
+    //         console.log("Error while uploading image" + err);
+    //         return
+    //     } else {
+    //         console.log("File saved");
+    //     }
+    //     // Everything went fine 
+    // })
 
     if (validate.isEmpty(req.body.email) || !validate.isEmail(req.body.email)) {
         res.status(400).json({ success: false, message: 'Please enter valid email' });
@@ -116,10 +156,10 @@ exports.register = function (req, res) {
     });
 };
 
-    /**
-     * POST /user/forgot-password
-     * User request for forgot password/ Send mail to the given user .
-     */
+/**
+ * POST /user/forgot-password
+ * User request for forgot password/ Send mail to the given user .
+ */
 
 exports.forgetPassword = function (req, res) {
 
@@ -165,10 +205,10 @@ exports.forgetPassword = function (req, res) {
     });
 };
 
-    /**
-     * POST /user/get-all-users
-     * Get all the user from the system optionally with fields.
-     */
+/**
+ * POST /user/get-all-users
+ * Get all the user from the system optionally with fields.
+ */
 
 exports.getAllUsers = function (req, res) {
 
@@ -195,10 +235,10 @@ exports.getAllUsers = function (req, res) {
     });
 };
 
-    /**
-     * PUT /user/get-userbyid
-     * Get the information for the given user based on the userId
-     */
+/**
+ * PUT /user/get-userbyid
+ * Get the information for the given user based on the userId
+ */
 
 exports.getUserInfobyId = function (req, res) {
 
@@ -224,10 +264,10 @@ exports.getUserInfobyId = function (req, res) {
     });
 };
 
-    /**
-     * PUT /user/update-userbyid || /user/update-user
-     * Update user information for the given user based on user id
-     */
+/**
+ * PUT /user/update-userbyid || /user/update-user
+ * Update user information for the given user based on user id
+ */
 
 exports.updateUserbyId = function (req, res) {
     let userid = "";
@@ -269,10 +309,10 @@ exports.updateUserbyId = function (req, res) {
     });
 };
 
-    /**
-     * PUT /user/update-password
-     * Update password of current user
-     */
+/**
+ * PUT /user/update-password
+ * Update password of current user
+ */
 
 exports.updatePassword = function (req, res) {
 
@@ -305,10 +345,10 @@ exports.updatePassword = function (req, res) {
     });
 };
 
-    /**
-     * POST /user/update-due-payments
-     * Update the remaining due amounts for the given user id
-     */
+/**
+ * POST /user/update-due-payments
+ * Update the remaining due amounts for the given user id
+ */
 
 exports.updateDuePayments = function (req, res) {
     if (validate.isEmpty(req.body.debtUserId)) {
@@ -336,10 +376,10 @@ exports.updateDuePayments = function (req, res) {
     });
 };
 
-    /**
-     * DELETE /user/delete-user
-     * Delete user based given user id
-     */
+/**
+ * DELETE /user/delete-user
+ * Delete user based given user id
+ */
 
 exports.deleteUser = function (req, res) {
     if (validate.isEmpty(req.body.id)) {

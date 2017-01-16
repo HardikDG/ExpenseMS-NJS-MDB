@@ -11,6 +11,7 @@
     "morgan": "^1.7.0",
     "multer": "^1.2.1",
     "nodemailer": "^2.6.0",
-    "nodemailer-smtp-transport": "^2.7.2"
+    "nodemailer-smtp-transport": "^2.7.2",
+    "superagent": "^3.3.2"
   }
 }
