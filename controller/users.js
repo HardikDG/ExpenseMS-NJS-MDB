@@ -167,37 +167,31 @@ exports.forgetPassword = function (req, res) {
     User.find({ email: email }, function (err, users) {
         if (err) throw err;
 
-        console.log(users);
         var user = users[0];
         if (users.length > 0) {
 
-            var smtpConfig = {
-                host: 'smtp.gmail.com',
-                port: 465,
-                secure: true, // use SSL 
+            var transporter = nodemailer.createTransport({
+                service: 'gmail',
                 auth: {
-                    user: 'hardik.chauhan.sa@gmail.com',
-                    pass: 'Hardik@sa123'
+                    user: 'pyrolrdev@gmail.com',
+                    pass: 'pyro@123'
                 }
-            };
-
-            var transporter = nodemailer.createTransport(smtpConfig);
-
-            var mailOptions = {
-                from: '"Hardik Chauhan" <hardik.chauhan.sa@gmail.com>',
-                to: user.email,
-                subject: 'Forgot password request',
-                text: 'Hello ' + user.fullName + ', here is you current password, \n password ==> ' + user.password
-            };
-
-            transporter.sendMail(mailOptions, function (error, info) {
-                if (error) {
-                    return console.log(error);
-                }
-                console.log('Message sent: ' + info.response);
-                res.json({ success: true, message: 'Password sent to your mail address.', token: token });
             });
 
+            transporter.sendMail({
+                from: '"Pyro EMS" <pyrolr@gmail.com>',
+                to: user.email,
+                subject: "forgot password",
+                text: 'Hello ' + user.fullName + ', here is you current password, \n password ==> ' + user.password
+            }, function (error, info) {
+                if (error) {
+                    console.log(error);
+                    res.status(500).json({ success: false, message: 'Mail not sent, please try again later' });
+                } else {
+                    console.log('Message sent: ' + info.response);
+                    res.status(200).json({ success: true, message: 'Mail sent, Please check your mailbox' });
+                }
+            });
         }
         else {
             res.status(404).json({ success: false, message: 'User not found' });

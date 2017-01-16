@@ -36,6 +36,7 @@ db.system.version.insert({ "_id" : "authSchema", "currentVersion" : 3 })
 */
 
 mongoose.connect(config.database,options);
+// mongoose.connect(config.database); //Home
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
