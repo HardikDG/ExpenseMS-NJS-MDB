@@ -2,6 +2,7 @@
   "name": "node-api",
   "main": "server.js",
   "dependencies": {
+    "async": "^2.1.4",
     "bcrypt": "^0.8.7",
     "body-parser": "~1.0.1",
     "express": "~4.0.0",
@@ -12,6 +13,8 @@
     "multer": "^1.2.1",
     "nodemailer": "^2.6.0",
     "nodemailer-smtp-transport": "^2.7.2",
+    "passport": "^0.3.2",
+    "passport-local": "^1.0.0",
     "superagent": "^3.3.2"
   }
 }
