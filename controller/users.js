@@ -17,10 +17,10 @@ var userExclusion = {
     lastLogin: false
 };
 
-    /**
-     * POST /user/login
-     * Login users to the system .
-     */
+/**
+ * POST /user/login
+ * Login users to the system .
+ */
 
 exports.login = function (req, res) {
     var email = req.body.email;
@@ -48,10 +48,10 @@ exports.login = function (req, res) {
     });
 };
 
-    /**
-     * POST /user/register
-     * Register new users to the system .
-     */
+/**
+ * POST /user/register
+ * Register new users to the system .
+ */
 
 exports.register = function (req, res) {
 
@@ -116,10 +116,10 @@ exports.register = function (req, res) {
     });
 };
 
-    /**
-     * POST /user/forgot-password
-     * User request for forgot password/ Send mail to the given user .
-     */
+/**
+ * POST /user/forgot-password
+ * User request for forgot password/ Send mail to the given user .
+ */
 
 exports.forgetPassword = function (req, res) {
 
@@ -127,37 +127,31 @@ exports.forgetPassword = function (req, res) {
     User.find({ email: email }, function (err, users) {
         if (err) throw err;
 
-        console.log(users);
         var user = users[0];
         if (users.length > 0) {
 
-            var smtpConfig = {
-                host: 'smtp.gmail.com',
-                port: 465,
-                secure: true, // use SSL 
+            var transporter = nodemailer.createTransport({
+                service: 'gmail',
                 auth: {
-                    user: 'hardik.chauhan.sa@gmail.com',
-                    pass: 'Hardik@sa123'
+                    user: 'pyrolrdev@gmail.com',
+                    pass: 'pyro@123'
                 }
-            };
-
-            var transporter = nodemailer.createTransport(smtpConfig);
-
-            var mailOptions = {
-                from: '"Hardik Chauhan" <hardik.chauhan.sa@gmail.com>',
-                to: user.email,
-                subject: 'Forgot password request',
-                text: 'Hello ' + user.fullName + ', here is you current password, \n password ==> ' + user.password
-            };
-
-            transporter.sendMail(mailOptions, function (error, info) {
-                if (error) {
-                    return console.log(error);
-                }
-                console.log('Message sent: ' + info.response);
-                res.json({ success: true, message: 'Password sent to your mail address.', token: token });
             });
 
+            transporter.sendMail({
+                from: '"Pyro EMS" <pyrolr@gmail.com>',
+                to: user.email,
+                subject: "forgot password",
+                text: 'Hello ' + user.fullName + ', here is you current password, \n password ==> ' + user.password
+            }, function (error, info) {
+                if (error) {
+                    console.log(error);
+                    res.status(500).json({ success: false, message: 'Mail not sent, please try again later' });
+                } else {
+                    console.log('Message sent: ' + info.response);
+                    res.status(200).json({ success: true, message: 'Mail sent, Please check your mailbox' });
+                }
+            });
         }
         else {
             res.status(404).json({ success: false, message: 'User not found' });
@@ -165,10 +159,10 @@ exports.forgetPassword = function (req, res) {
     });
 };
 
-    /**
-     * POST /user/get-all-users
-     * Get all the user from the system optionally with fields.
-     */
+/**
+ * POST /user/get-all-users
+ * Get all the user from the system optionally with fields.
+ */
 
 exports.getAllUsers = function (req, res) {
 
@@ -195,10 +189,10 @@ exports.getAllUsers = function (req, res) {
     });
 };
 
-    /**
-     * PUT /user/get-userbyid
-     * Get the information for the given user based on the userId
-     */
+/**
+ * PUT /user/get-userbyid
+ * Get the information for the given user based on the userId
+ */
 
 exports.getUserInfobyId = function (req, res) {
 
@@ -224,10 +218,10 @@ exports.getUserInfobyId = function (req, res) {
     });
 };
 
-    /**
-     * PUT /user/update-userbyid || /user/update-user
-     * Update user information for the given user based on user id
-     */
+/**
+ * PUT /user/update-userbyid || /user/update-user
+ * Update user information for the given user based on user id
+ */
 
 exports.updateUserbyId = function (req, res) {
     let userid = "";
@@ -269,10 +263,10 @@ exports.updateUserbyId = function (req, res) {
     });
 };
 
-    /**
-     * PUT /user/update-password
-     * Update password of current user
-     */
+/**
+ * PUT /user/update-password
+ * Update password of current user
+ */
 
 exports.updatePassword = function (req, res) {
 
@@ -305,10 +299,10 @@ exports.updatePassword = function (req, res) {
     });
 };
 
-    /**
-     * POST /user/update-due-payments
-     * Update the remaining due amounts for the given user id
-     */
+/**
+ * POST /user/update-due-payments
+ * Update the remaining due amounts for the given user id
+ */
 
 exports.updateDuePayments = function (req, res) {
     if (validate.isEmpty(req.body.debtUserId)) {
@@ -336,10 +330,10 @@ exports.updateDuePayments = function (req, res) {
     });
 };
 
-    /**
-     * DELETE /user/delete-user
-     * Delete user based given user id
-     */
+/**
+ * DELETE /user/delete-user
+ * Delete user based given user id
+ */
 
 exports.deleteUser = function (req, res) {
     if (validate.isEmpty(req.body.id)) {
