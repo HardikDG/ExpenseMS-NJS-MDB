@@ -227,8 +227,8 @@ exports.forgetPassword_old = function (req, res) {
             var transporter = nodemailer.createTransport({
                 service: 'gmail',
                 auth: {
-                    user: 'pyrolrdev@gmail.com',
-                    pass: 'pyro@123'
+                    user: 'your email',
+                    pass: 'your Password'
                 }
             });
 
