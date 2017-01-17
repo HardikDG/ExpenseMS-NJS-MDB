@@ -5,7 +5,6 @@ const _ = require('lodash');
 
 exports.checkAuth = function (req, res, next) {
     
-    console.log("Reset: " + req.path);
     let openPath = ["/user/login","/user/register","/user/forgot-password","/user/reset"];
     if (_.includes(openPath, req.path) || req.path.includes('reset')){
         next()

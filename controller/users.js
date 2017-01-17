@@ -6,11 +6,13 @@ const smtpTransport = require('nodemailer-smtp-transport');
 const bcrypt = require('bcrypt');
 const validate = require('../helper/validate');
 const config = require('../config');
+const secret_const = require('../config/secrets');
 const multer = require('multer')
 const upload = multer({ dest: 'uploads/' })
 const superagent = require('superagent');
 const async = require('async');
 const crypto = require('crypto');
+const utils = require('../helper/utils');
 const saltRounds = 5;
 
 var mailchimpInstance = 'us14',
@@ -64,26 +66,26 @@ exports.login = function (req, res) {
 exports.register = function (req, res) {
 
     // mailchimp mail subscription
-    // superagent
-    //     .post('https://' + mailchimpInstance + '.api.mailchimp.com/3.0/lists/' + listUniqueId + '/members/')
-    //     .set('Content-Type', 'application/json;charset=utf-8')
-    //     .set('Authorization', 'Basic ' + new Buffer('any:' + mailchimpApiKey).toString('base64'))
-    //     .send({
-    //         'email_address': req.body.email,
-    //         'status': 'subscribed',
-    //         'merge_fields': {
-    //             'FNAME': req.body.firstName,
-    //             'LNAME': req.body.lastName
-    //         }
-    //     })
-    //     .end(function (err, response) {
-    //         if (response.status < 300 || (response.status === 400 && response.body.title === "Member Exists")) {
-    //             // res.send('Signed Up!');
-    //             console.log("Mail from mailchimp sent");
-    //         } else {
-    //             console.log('mailchimp mail failed :(');
-    //         }
-    //     });
+    superagent
+        .post('https://' + mailchimpInstance + '.api.mailchimp.com/3.0/lists/' + listUniqueId + '/members/')
+        .set('Content-Type', 'application/json;charset=utf-8')
+        .set('Authorization', 'Basic ' + new Buffer('any:' + mailchimpApiKey).toString('base64'))
+        .send({
+            'email_address': req.body.email,
+            'status': 'subscribed',
+            'merge_fields': {
+                'FNAME': req.body.firstName,
+                'LNAME': req.body.lastName
+            }
+        })
+        .end(function (err, response) {
+            console.log("Err: " + err);
+            if (response.status < 300 || (response.status === 400 && response.body.title === "Member Exists")) {
+                res.send('Signed Up!');
+            } else {
+                res.send('Sign Up Failed :(');
+            }
+        });
 
     // var upload = multer().single('avatar');
     // console.log("File received");
@@ -171,24 +173,24 @@ exports.forgetPassword = function (req, res) {
                     if (!err) {
                         done(err, token, user);
                     } else {
-                        res.status(500).json({ success: false, message: 'Fail to generate the token, please try again' });
+                        res.status(500).json({ success: false, message: 'Fail to generate reset the token, please try again' });
                     }
                 });
             });
         },
         function (token, user, done) {
             var transporter = nodemailer.createTransport({
-                service: 'gmail',
+                service: secret_const.MAIL_CONFIG.DOMAIN,
                 auth: {
-                    user: 'pyrolrdev@gmail.com',
-                    pass: 'pyro@123'
+                    user: secret_const.MAIL_CONFIG.EMAIL,
+                    pass: secret_const.MAIL_CONFIG.PASSWORD
                 }
             });
 
             transporter.sendMail({
-                from: '"Pyro EMS" <pyrolr@gmail.com>',
+                from: secret_const.MAIL_CONFIG.FROM,
                 to: user.email,
-                subject: "forgot password",
+                subject: secret_const.MAIL_CONFIG.FORGOT_SUBJECT,
                 text: 'You are receiving this because you (or someone else) have requested the reset of the password for your account.\n\n' +
                 'Please click on the following link, or paste this into your browser to complete the process:\n\n' +
                 'http://localhost:9090/api/v1/user/reset/' + token + '\n\n' +
@@ -267,52 +269,39 @@ exports.resetPassword = function (req, res) {
     });
 };
 
+exports.resetWithNewPassword = function (req, res) {
 
+    User.findOne({ resetPasswordToken: req.body.token, resetPasswordExpires: { $gt: Date.now() } }, function (err, user) {
+        if (!user) {
+            res.status(401).json({ success: false, message: 'Password reset token is invalid or has expired.' });
+            return;
+        }
+        user.resetPasswordToken = undefined;
+        user.resetPasswordExpires = undefined;
 
-// app.post('/reset/:token', function(req, res) {
-//   async.waterfall([
-//     function(done) {
-//       User.findOne({ resetPasswordToken: req.params.token, resetPasswordExpires: { $gt: Date.now() } }, function(err, user) {
-//         if (!user) {
-//           req.flash('error', 'Password reset token is invalid or has expired.');
-//           return res.redirect('back');
-//         }
-
-//         user.password = req.body.password;
-//         user.resetPasswordToken = undefined;
-//         user.resetPasswordExpires = undefined;
-
-//         user.save(function(err) {
-//           req.logIn(user, function(err) {
-//             done(err, user);
-//           });
-//         });
-//       });
-//     },
-//     function(user, done) {
-//       var smtpTransport = nodemailer.createTransport('SMTP', {
-//         service: 'SendGrid',
-//         auth: {
-//           user: '!!! YOUR SENDGRID USERNAME !!!',
-//           pass: '!!! YOUR SENDGRID PASSWORD !!!'
-//         }
-//       });
-//       var mailOptions = {
-//         to: user.email,
-//         from: 'passwordreset@demo.com',
-//         subject: 'Your password has been changed',
-//         text: 'Hello,\n\n' +
-//           'This is a confirmation that the password for your account ' + user.email + ' has just been changed.\n'
-//       };
-//       smtpTransport.sendMail(mailOptions, function(err) {
-//         req.flash('success', 'Success! Your password has been changed.');
-//         done(err);
-//       });
-//     }
-//   ], function(err) {
-//     res.redirect('/');
-//   });
-// });
+        if (bcrypt.compareSync(req.body.currentPassword, user.password)) {
+            var salt = bcrypt.genSaltSync(saltRounds);
+            var hash = bcrypt.hashSync(req.body.newPassword, salt);
+            user.password = hash;
+            user.save((err) => {
+                if (err) {
+                    console.log("Save error " + err);
+                    res.status(500).json({ success: false, message: 'Something went wrong' });
+                }
+                res.status(200).json({ success: true, message: 'Password successfully updated' });
+                utils.sendSMTPMail(user.email, "Password changed confirmation", "Your password changed sucessfully.", function (error, isSent) {
+                    if (isSent) {
+                        console.log("Mail sent for password changed confirmation");
+                    } else {
+                        console.log("Mail not sent for password changed confirmation" + error);
+                    }
+                })
+            });
+        } else {
+            res.status(401).json({ success: false, message: 'Current password did not match.' });
+        }
+    });
+};
 
 /**
  * POST /user/get-all-users

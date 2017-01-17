@@ -21,6 +21,7 @@ router.route('/user/update-password').put(userController.updatePassword);
 router.route('/user/update-due-payments').put(auth.isUserAdmin, userController.updateDuePayments);
 router.route('/user/delete-user').delete(auth.isUserAdmin, userController.deleteUser);
 router.route('/user/reset/:token').get( userController.resetPassword);
+router.route('/user/reset/newpass').post( userController.resetWithNewPassword);
 
 //Expense API
 // router.route('/expense/*').post(auth.checkAuth);

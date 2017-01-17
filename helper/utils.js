@@ -1,37 +1,10 @@
-var fs = require('fs');
-var path = require('path');
-var crypto = require('crypto');
-var secrets = require(basePath + 'config/secrets');
-var User = require(basePath + 'models/user');
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+const secret_const = require('../config/secrets');
+const User = require('../models/user');
 
 module.exports = {
-    sendResponse: function (res, response, status) {
-        var response = JSON.stringify(response);
-        var status = !validate.isEmpty(status) ? status : 200;
-        if (status != "200") {
-            require(basePath + 'helper/utils').sendSMTPMail("anish.agarwal.sa@gmail.com", "Error comes local", response);
-        }
-        res.setHeader('Content-Type', 'application/json');
-        res.status(status)
-        res.end(response);
-    },
-    sendEmail: function (toEmail, subject, body, callback) {
-        smtpTransport = nodemailer.createTransport();
-        var isEmailSent = false;
-        smtpTransport.sendMail({
-            from: "test@example.com",
-            to: toEmail,
-            subject: subject,
-            html: body
-        }, function (error, response) {
-            if (error) {
-                isEmailSent = true;
-            } else {
-                isEmailSent = false;
-            }
-            callback(null, isEmailSent);
-        });
-    },
     //remove all spaces and zero from starting of number
     getOnlyMobileNumber: function (mobile_number) {
         var s = mobile_number.replace(/[^0-9]+/gi, "");
@@ -44,34 +17,36 @@ module.exports = {
     },
 
     //send forgot password mail on users email
-    sendSMTPMail: function (email, subject, body) {
+    sendSMTPMail: function (email, subject, body,callback) {
         var nodemailer = require('nodemailer');
         var smtpTransport = require('nodemailer-smtp-transport');
 
-        var from = secrets.MAIL_CONFIG.EMAIL;
-        var pwd = secrets.MAIL_CONFIG.PASSWORD;
-        var to = email;
+        var transporter = nodemailer.createTransport({
+                service: secret_const.MAIL_CONFIG.DOMAIN,
+                auth: {
+                    user: secret_const.MAIL_CONFIG.EMAIL,
+                    pass: secret_const.MAIL_CONFIG.PASSWORD
+                }
+            });
 
-        // create reusable transporter object using the default SMTP transport
-        var transporter = nodemailer.createTransport(
-            smtpTransport(secrets.MAIL_CONFIG.PROTOCOL + '://' + from + ':' + pwd + secrets.MAIL_CONFIG.DOMAIN)
-        );
-
-        // setup e-mail data with unicode symbols
-        var mailOptions = {
-            from: secrets.MAIL_CONFIG.FROM + '<' + from + '>', // sender address
-            to: to, // list of receivers
-            subject: subject, // Subject line    
-            html: body
-        };
-
-        // send mail with defined transport object
-        transporter.sendMail(mailOptions, function (error, info) {
-            if (error) {
-                return console.log(error);
-            }
-            console.log('Message sent: ' + info.response);
-        });
+            transporter.sendMail({
+                from: secret_const.MAIL_CONFIG.FROM,
+                to: email,
+                subject: subject,
+                text: body
+            }, function (error, info) {
+                let isEmailSent = false;
+                if (error) {
+                    console.log(error);
+                    // res.status(500).json({ success: false, message: 'Mail not sent, please try again later' });
+                } else {
+                    isEmailSent = true;
+                    console.log('Message sent: ' + info.response);
+                    //res.status(200).json({ success: true, message: 'Mail sent, Please check your mailbox' });
+                }
+                callback(error,isEmailSent);
+            });
+        
     },
     getMobileOtp: function () {
         return Math.floor(Math.random() * 900000) + 100000;
