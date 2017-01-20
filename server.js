@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 // const config = require('./config'); // get our config file
 const bodyParser = require('body-parser');
 const morgan = require('morgan');
+const multer = require('multer')
 
 //Environment configration
 var config = require('./config/env/development');
@@ -19,7 +20,8 @@ console.log("DB :" + config.database);
 
 var options = {
     user: 'hardik',
-    pass: 'abc123', auth: {
+    pass: 'abc123',
+    auth: {
         authdb: 'EMS'
     }
 }
@@ -35,7 +37,7 @@ db.system.version.insert({ "_id" : "authSchema", "currentVersion" : 3 })
  db.system.users.find()
 */
 
-mongoose.connect(config.database,options);
+mongoose.connect(config.database, options);
 // mongoose.connect(config.database); //Home
 
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -45,8 +47,41 @@ app.use(morgan('dev'));
 
 var db = mongoose.connection;
 db.on('error', console.error.bind(console, 'mongodb connection error:'));
-db.once('open', function () {
+db.once('open', function() {
     console.log('✓ MongoDB connection established!');
+});
+
+// app.post('/test', multer({ dest: './uploads' }).single('avatar'), function(req, res) {
+//     console.log(req.body); //form fields
+
+//     // console.log(req.file); //form files
+//     console.log("Dest: " + req.destination);
+//     console.log("Path: " + req.size);
+//     res.status(204).end();
+// });
+
+var storage = multer.diskStorage({
+    destination: function(request, file, callback) {
+        callback(null, './uploads');
+    },
+    filename: function(request, file, callback) {
+        console.log(file);
+        callback(null, file.originalname)
+    }
+});
+
+var upload = multer({ storage: storage }).single('avatar');
+
+app.post('/test', function(request, response) {
+    upload(request, response, function(err) {
+        if (err) {
+            console.log('Error Occured');
+            return;
+        }
+        console.log(request.file);
+        response.end('Your File Uploaded');
+        console.log('Photo Uploaded');
+    })
 });
 
 const api = require('./routes/api');

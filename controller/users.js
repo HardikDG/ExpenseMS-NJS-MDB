@@ -7,8 +7,6 @@ const bcrypt = require('bcrypt');
 const validate = require('../helper/validate');
 const config = require('../config');
 const secret_const = require('../config/secrets');
-const multer = require('multer')
-const upload = multer({ dest: 'uploads/' })
 const superagent = require('superagent');
 const async = require('async');
 const crypto = require('crypto');
@@ -29,7 +27,7 @@ var userExclusion = {
  * Login users to the system .
  */
 
-exports.login = function (req, res) {
+exports.login = function(req, res) {
     var email = req.body.email;
     var password = req.body.password;
 
@@ -39,7 +37,7 @@ exports.login = function (req, res) {
         res.status(400).json({ success: false, message: 'Please enter password' });
     }
 
-    User.find({ email: email }, function (err, users) {
+    User.find({ email: email }, function(err, users) {
         if (err) res.json({ success: false, message: 'Login failed!!! ' });
         console.log(users);
         if (users.length > 0) {
@@ -60,29 +58,31 @@ exports.login = function (req, res) {
  * Register new users to the system .
  */
 
-exports.register = function (req, res) {
+exports.register = function(req, res) {
 
     // mailchimp mail subscription
-    superagent
-        .post('https://' + secret_const.MAILCHIMP.SERVER_INSTANCE + '.api.mailchimp.com/3.0/lists/' + secret_const.MAILCHIMP.LIST_UNIQUE_ID + '/members/')
-        .set('Content-Type', 'application/json;charset=utf-8')
-        .set('Authorization', 'Basic ' + new Buffer('any:' + secret_const.MAILCHIMP.API_KEY).toString('base64'))
-        .send({
-            'email_address': req.body.email,
-            'status': 'subscribed',
-            'merge_fields': {
-                'FNAME': req.body.firstName,
-                'LNAME': req.body.lastName
-            }
-        })
-        .end(function (err, response) {
-            console.log("Err: " + err);
-            if (response.status < 300 || (response.status === 400 && response.body.title === "Member Exists")) {
-                res.send('Signed Up!');
-            } else {
-                res.send('Sign Up Failed :(');
-            }
-        });
+    // superagent
+    //     .post('https://' + secret_const.MAILCHIMP.SERVER_INSTANCE + '.api.mailchimp.com/3.0/lists/' + secret_const.MAILCHIMP.LIST_UNIQUE_ID + '/members/')
+    //     .set('Content-Type', 'application/json;charset=utf-8')
+    //     .set('Authorization', 'Basic ' + new Buffer('any:' + secret_const.MAILCHIMP.API_KEY).toString('base64'))
+    //     .send({
+    //         'email_address': req.body.email,
+    //         'status': 'subscribed',
+    //         'merge_fields': {
+    //             'FNAME': req.body.firstName,
+    //             'LNAME': req.body.lastName
+    //         }
+    //     })
+    //     .end(function (err, response) {
+    //         console.log("Err: " + err);
+    //         if (response.status < 300 || (response.status === 400 && response.body.title === "Member Exists")) {
+    //             res.send('Signed Up!');
+    //         } else {
+    //             res.send('Sign Up Failed :(');
+    //         }
+    //     });
+
+
 
     if (validate.isEmpty(req.body.email) || !validate.isEmail(req.body.email)) {
         res.status(400).json({ success: false, message: 'Please enter valid email' });
@@ -93,7 +93,7 @@ exports.register = function (req, res) {
     }
 
     var email = req.body.email;
-    User.find({ email: email }, function (err, users) {
+    User.find({ email: email }, function(err, users) {
         if (err) {
             res.status(500).json({ success: false, message: 'Internal server error' });
         }
@@ -101,8 +101,7 @@ exports.register = function (req, res) {
         console.log(users);
         if (users.length > 0) {
             res.status(409).json({ success: false, message: 'User already exists!!!' });
-        }
-        else {
+        } else {
 
             var salt = bcrypt.genSaltSync(saltRounds);
             var hash = bcrypt.hashSync(req.body.password, salt);
@@ -114,7 +113,7 @@ exports.register = function (req, res) {
             var admin = req.body.isAdmin || false;
 
 
-            var profileGravatar = gravatar.url(req.body.email, {s: '100', r: 'g', d: 'retro'}, true);
+            var profileGravatar = gravatar.url(req.body.email, { s: '100', r: 'g', d: 'retro' }, true);
 
             var tempUserData = new User({
                 fullName: fullName,
@@ -124,7 +123,7 @@ exports.register = function (req, res) {
                 isAdmin: admin,
                 userPic: profileGravatar
             });
-            tempUserData.save(function (err, createdUser) {
+            tempUserData.save(function(err, createdUser) {
                 if (err) {
                     res.json({ success: false, message: 'User not created!!!' });
                 }
@@ -139,16 +138,16 @@ exports.register = function (req, res) {
  * POST /user/forgot-password
  * User request for forgot password/ Send mail to the given user .
  */
-exports.forgetPassword = function (req, res) {
+exports.forgetPassword = function(req, res) {
     async.waterfall([
-        function (done) {
-            crypto.randomBytes(20, function (err, buf) {
+        function(done) {
+            crypto.randomBytes(20, function(err, buf) {
                 var token = buf.toString('hex');
                 done(err, token);
             });
         },
-        function (token, done) {
-            User.findOne({ email: req.body.email }, function (err, user) {
+        function(token, done) {
+            User.findOne({ email: req.body.email }, function(err, user) {
                 if (!user) {
                     res.status(404).json({ success: false, message: 'User not found' });
                 }
@@ -156,7 +155,7 @@ exports.forgetPassword = function (req, res) {
                 user.resetPasswordToken = token;
                 user.resetPasswordExpires = Date.now() + (3600000 * 24); // 24 hour
 
-                user.save(function (err) {
+                user.save(function(err) {
                     if (!err) {
                         done(err, token, user);
                     } else {
@@ -165,7 +164,7 @@ exports.forgetPassword = function (req, res) {
                 });
             });
         },
-        function (token, user, done) {
+        function(token, user, done) {
             var transporter = nodemailer.createTransport({
                 service: secret_const.MAIL_CONFIG.DOMAIN,
                 auth: {
@@ -179,10 +178,10 @@ exports.forgetPassword = function (req, res) {
                 to: user.email,
                 subject: secret_const.MAIL_CONFIG.FORGOT_SUBJECT,
                 text: 'You are receiving this because you (or someone else) have requested the reset of the password for your account.\n\n' +
-                'Please click on the following link, or paste this into your browser to complete the process:\n\n' +
-                'http://localhost:9090/api/v1/user/reset/' + token + '\n\n' +
-                'If you did not request this, please ignore this email and your password will remain unchanged.\n'
-            }, function (error, info) {
+                    'Please click on the following link, or paste this into your browser to complete the process:\n\n' +
+                    'http://localhost:9090/api/v1/user/reset/' + token + '\n\n' +
+                    'If you did not request this, please ignore this email and your password will remain unchanged.\n'
+            }, function(error, info) {
                 if (error) {
                     console.log(error);
                     res.status(500).json({ success: false, message: 'Mail not sent, please try again later' });
@@ -192,7 +191,7 @@ exports.forgetPassword = function (req, res) {
                 }
             });
         }
-    ], function (err) {
+    ], function(err) {
         if (err) return next(err);
     });
 };
@@ -202,10 +201,10 @@ exports.forgetPassword = function (req, res) {
  * User request for forgot password/ Send mail to the given user .
  */
 
-exports.forgetPassword_old = function (req, res) {
+exports.forgetPassword_old = function(req, res) {
 
     var email = req.body.email;
-    User.find({ email: email }, function (err, users) {
+    User.find({ email: email }, function(err, users) {
         if (err) throw err;
 
         var user = users[0];
@@ -224,7 +223,7 @@ exports.forgetPassword_old = function (req, res) {
                 to: user.email,
                 subject: "forgot password",
                 text: 'Hello ' + user.fullName + ', here is you current password, \n password ==> ' + user.password
-            }, function (error, info) {
+            }, function(error, info) {
                 if (error) {
                     console.log(error);
                     res.status(500).json({ success: false, message: 'Mail not sent, please try again later' });
@@ -233,8 +232,7 @@ exports.forgetPassword_old = function (req, res) {
                     res.status(200).json({ success: true, message: 'Mail sent, Please check your mailbox' });
                 }
             });
-        }
-        else {
+        } else {
             res.status(404).json({ success: false, message: 'User not found' });
         }
     });
@@ -245,20 +243,19 @@ exports.forgetPassword_old = function (req, res) {
  * User request for forgot password/ Send mail to the given user .
  */
 
-exports.resetPassword = function (req, res) {
-    User.findOne({ resetPasswordToken: req.params.token, resetPasswordExpires: { $gt: Date.now() } }, function (err, user) {
+exports.resetPassword = function(req, res) {
+    User.findOne({ resetPasswordToken: req.params.token, resetPasswordExpires: { $gt: Date.now() } }, function(err, user) {
         if (!user) {
             res.status(401).json({ success: false, message: 'Password reset token is invalid or has expired.' });
-        }
-        else {
+        } else {
             res.status(200).json({ success: false, message: 'Token found send req for new password' });
         }
     });
 };
 
-exports.resetWithNewPassword = function (req, res) {
+exports.resetWithNewPassword = function(req, res) {
 
-    User.findOne({ resetPasswordToken: req.body.token, resetPasswordExpires: { $gt: Date.now() } }, function (err, user) {
+    User.findOne({ resetPasswordToken: req.body.token, resetPasswordExpires: { $gt: Date.now() } }, function(err, user) {
         if (!user) {
             res.status(401).json({ success: false, message: 'Password reset token is invalid or has expired.' });
             return;
@@ -276,7 +273,7 @@ exports.resetWithNewPassword = function (req, res) {
                     res.status(500).json({ success: false, message: 'Something went wrong' });
                 }
                 res.status(200).json({ success: true, message: 'Password successfully updated' });
-                utils.sendSMTPMail(user.email, "Password changed confirmation", "Your password changed sucessfully.", function (error, isSent) {
+                utils.sendSMTPMail(user.email, "Password changed confirmation", "Your password changed sucessfully.", function(error, isSent) {
                     if (isSent) {
                         console.log("Mail sent for password changed confirmation");
                     } else {
@@ -295,7 +292,7 @@ exports.resetWithNewPassword = function (req, res) {
  * Get all the user from the system optionally with fields.
  */
 
-exports.getAllUsers = function (req, res) {
+exports.getAllUsers = function(req, res) {
 
     if (req.body.fields) {
         if (req.body.fields.length < 1) {
@@ -310,7 +307,7 @@ exports.getAllUsers = function (req, res) {
         selectedFields = userExclusion;
     }
 
-    User.find({}, selectedFields, function (err, users) {
+    User.find({}, selectedFields, function(err, users) {
         if (err) {
             res.status(500).json({ success: false, message: 'Some error occured in retrival of users' });
             console.log("All users error:  " + err);
@@ -325,7 +322,7 @@ exports.getAllUsers = function (req, res) {
  * Get the information for the given user based on the userId
  */
 
-exports.getUserInfobyId = function (req, res) {
+exports.getUserInfobyId = function(req, res) {
 
     if (validate.isEmpty(req.body.id)) {
         res.status(400).json({ message: "Please send user id to get details" })
@@ -333,7 +330,7 @@ exports.getUserInfobyId = function (req, res) {
 
     User.findOne({
         _id: req.body.id
-    }, userExclusion).exec(function (err, user) {
+    }, userExclusion).exec(function(err, user) {
         if (err) {
             console.log("getUserInfo :" + err);
             res.json({ success: false, message: 'Some error occured in retrival of the given user' });
@@ -354,7 +351,7 @@ exports.getUserInfobyId = function (req, res) {
  * Update user information for the given user based on user id
  */
 
-exports.updateUserbyId = function (req, res) {
+exports.updateUserbyId = function(req, res) {
     let userid = "";
     if (req.admin === true) {
         if (validate.isEmpty(req.body.id)) {
@@ -399,7 +396,7 @@ exports.updateUserbyId = function (req, res) {
  * Update password of current user
  */
 
-exports.updatePassword = function (req, res) {
+exports.updatePassword = function(req, res) {
 
     if (validate.isEmpty(req.body.currentPassword)) {
         res.status(400).json({ success: false, message: 'Please enter current password' });
@@ -435,7 +432,7 @@ exports.updatePassword = function (req, res) {
  * Update the remaining due amounts for the given user id
  */
 
-exports.updateDuePayments = function (req, res) {
+exports.updateDuePayments = function(req, res) {
     if (validate.isEmpty(req.body.debtUserId)) {
         res.status(400).json({ success: false, message: 'Please enter userId to update the due balance' });
     } else if (validate.isEmpty(req.body.amount)) {
@@ -466,14 +463,14 @@ exports.updateDuePayments = function (req, res) {
  * Delete user based given user id
  */
 
-exports.deleteUser = function (req, res) {
+exports.deleteUser = function(req, res) {
     if (validate.isEmpty(req.body.id)) {
         res.status(400).json({ message: "Please send user id to delete" })
     }
 
     User.findOneAndRemove({
         _id: req.body.id
-    }, function (err, user) {
+    }, function(err, user) {
         if (err) {
             console.log("User delete error:  " + err);
             res.status(400).json({ success: false, message: 'User not deleted, please check user id' });

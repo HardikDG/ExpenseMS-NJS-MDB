@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const smtpTransport = require('nodemailer-smtp-transport');
 const _ = require('lodash');
+const async = require('async');
 const validate = require('../helper/validate');
 
 /**
@@ -11,7 +12,7 @@ const validate = require('../helper/validate');
  * Add main expense entry 
  */
 
-exports.addExpense = function (req, res) {
+exports.addExpense = function(req, res) {
 
     if (validate.isEmpty(req.body.payerId)) {
         res.status(400).json({ success: false, message: 'Please select the payer' });
@@ -29,11 +30,15 @@ exports.addExpense = function (req, res) {
     var dividedSum = _.sumBy(debt, 'amount');
 
     var remain = Number(req.body.totalAmount) - dividedSum;
+
+    console.log("remain Debt:" + dividedSum);
+
     if (remain < 0) {
         res.status(400).json({ success: false, message: 'Please re-calculate the per head expense' });
     }
     remain = remain / debt.length;
-    _.forEach(debt, function (value) {
+    console.log("remain :" + remain);
+    _.forEach(debt, function(value) {
         if (value.amount) {
             value.amount = Number(value.amount);
             value.amount += remain;
@@ -42,46 +47,49 @@ exports.addExpense = function (req, res) {
         }
     });
     req.updatedDebt = debt;
+
+    console.log("Updated Debt:" + JSON.stringify(debt));
+
     if (req.path === "/expense/update-expense") {
         Expense.findById(req.expnIs, (err, expense) => {
-        if (err) {
-            console.log("Update error " + err);
-            res.status(404).json({ success: false, message: 'No expense found with the given token' });
-        }
-        if (expense) {
-            expense.payer = req.body.payer || expense.payer;
-            expense.payerId = req.body.payerId || expense.payerId;
-            expense.debtor = debt || expense.debtor;
-            expense.totalAmount = req.body.totalAmount || expense.totalAmount;
-            expense.description = req.body.description || expense.description;
-            expense.save((err) => {
-                if (err) {
-                    console.log("Save error " + err);
+            if (err) {
+                console.log("Update error " + err);
+                res.status(404).json({ success: false, message: 'No expense found with the given token' });
+            }
+            if (expense) {
+                expense.payer = req.body.payer || expense.payer;
+                expense.payerId = req.body.payerId || expense.payerId;
+                expense.debtor = debt || expense.debtor;
+                expense.totalAmount = req.body.totalAmount || expense.totalAmount;
+                expense.description = req.body.description || expense.description;
+                expense.save((err) => {
+                    if (err) {
+                        console.log("Save error " + err);
                         res.status(500).json({ success: false, message: 'Something went wrong' });
-                }
-                res.status(200).json({ success: true, message: 'Expense successfully updated' });
-            });
-        } else {
-            res.status(404).json({ success: false, message: 'No user found with the given token' });
-        }
-    });
+                    }
+                    res.status(200).json({ success: true, message: 'Expense successfully updated' });
+                });
+            } else {
+                res.status(404).json({ success: false, message: 'No user found with the given token' });
+            }
+        });
     } else {
         var tempExpense = new Expense({
-        createdBy: req.userId,
-        payer: req.body.payer,
-        payerId: req.body.payerId,
-        debtor: debt,
-        totalAmount: req.body.totalAmount,
-        description: req.body.description
-    });
+            createdBy: req.userId,
+            payer: req.body.payer,
+            payerId: req.body.payerId,
+            debtor: debt,
+            totalAmount: req.body.totalAmount,
+            description: req.body.description
+        });
 
-    tempExpense.save(function (err, createdExpense) {
-        if (err) {
-            console.error(err);
-            res.status(400).json({ message: 'Error creating expense!!!' });
-        }
-        updateExpenseforUser(req,res);
-    });
+        tempExpense.save(function(err, createdExpense) {
+            if (err) {
+                console.error(err);
+                res.status(400).json({ message: 'Error creating expense!!!' });
+            }
+            updateExpenseforUser(req, res);
+        });
     }
 };
 
@@ -90,90 +98,106 @@ exports.addExpense = function (req, res) {
  * update balance for the users
  */
 
-exports.updateExpenseforUser = function (req, res) {
+function updateExpenseforUser(req, res) {
     let debt = req.updatedDebt;
     var debtIds = _.map(debt, 'debtId');
 
-    User.findById(req.body.payerId, (err, user) => {
-        if (err) {
-            res.status(404).json({ success: false, message: 'No used found with the given payerId' });
-        }
-        if (user) {
-            if (req.isDelete === true) {
-                user.balance -= Number(req.body.totalAmount);
-            } else {
-                user.balance += Number(req.body.totalAmount);
-            }
-            user.save((err) => {
+    async.waterfall([
+        function(req, done) {
+            User.findById(req.body.payerId, (err, user) => {
                 if (err) {
-                    console.log("Save error " + err);
-                    res.status(500).json({ success: false, message: 'Something went wrong' });
+                    res.status(404).json({ success: false, message: 'No used found with the given payerId' });
+                }
+                if (user) {
+                    if (req.isDelete === true) {
+                        user.balance -= Number(req.body.totalAmount);
+                    } else {
+                        console.log("old balance: " + user.balance);
+                        user.balance += Number(req.body.totalAmount);
+                        console.log("New balance: " + user.balance);
+                    }
+                    user.save((err) => {
+                        if (err) {
+                            console.log("Save error " + err);
+                            res.status(500).json({ success: false, message: 'Something went wrong' });
+                        }
+                        done(req);
+                        console.log("Expense added in " + req.body.payerId);
+                    });
+                } else {
+                    res.status(404).json({ success: false, message: 'No user found with the given payerId' });
                 }
             });
-        } else {
-            res.status(404).json({ success: false, message: 'No user found with the given payerId' });
+        },
+        function(req) {
+            User.find()
+                .where('_id')
+                .in(debtIds)
+                .exec(function(err, users) {
+                    if (err) {
+                        res.send(err);
+                    }
+                    if (users.length > 0) {
+                        for (i = 0; i < users.length; i++) {
+                            let obj = _.find(debt, { 'debtId': users[i]._id.toString() });
+                            // console.log("ID :" + obj.debtId + "  Amount:  " + obj.amount);
+                            let isLast = false;
+                            let isDelete = false;
+                            if (i === users.length - 1) {
+                                isLast = true;
+                            }
+                            if (req.isDelete === true) {
+                                isDelete = true;
+                                obj.amount = -Math.abs(obj.amount);
+                            }
+
+                            let options = {
+                                user: users[i],
+                                amount: obj.amount,
+                                res: res,
+                                isLast: isLast,
+                                isDelete: isDelete,
+                                req: req
+                            }
+
+                            console.log("Prev Amt: " + users[i].balance);
+                            users[i].balance -= obj.amount;
+                            console.log("New Amt: " + users[i].balance + " Obj Amt: " + obj.amount);
+                            users[i].save((err) => {
+                                if (err) {
+                                    res.status(500).json({ success: false, message: 'Something went wrong' });
+                                    console.log(err);
+                                    //TODO: Fallback event entry
+                                }
+                                if (isLast === true) {
+                                    if (isDelete === true) {
+                                        removeExpenseEntry(options);
+                                    } else {
+                                        res.status(200).json({ message: "Expense added successfully" });
+                                    }
+                                    //TODO: Send email to payer and debtor on success
+                                }
+                            });
+                        }
+                    }
+                });
         }
+    ], function(error, success) {
+        if (error) { res.status(500).json({ message: "Error while adding expense " }); }
+        console.log("Error in add expense: " + error);
     });
 
-    User.find()
-        .where('_id')
-        .in(debtIds)
-        .exec(function (err, users) {
-            if (err) {
-                res.send(err);
-            }
-            if (users.length > 0) {
-                for (i = 0; i < users.length; i++) {
-                    let obj = _.find(debt, { 'debtId': users[i]._id.toString() });
-                    // console.log("ID :" + obj.debtId + "  Amount:  " + obj.amount);
-                    let isLast = false;
-                    let isDelete = false;
-                    if (i === users.length - 1) {
-                        isLast = true;
-                    }
-                    if (req.isDelete === true) {
-                        isDelete = true;
-                        obj.amount = -Math.abs(obj.amount);
-                    }
-                    let options = {
-                        user: users[i],
-                        amount: obj.amount,
-                        res: res,
-                        isLast: isLast,
-                        isDelete: isDelete,
-                        req: req
-                    }
 
-                    users[i].balance -= obj.amount;
-                    users[i].save((err) => {
-                        if (err) {
-                            res.status(500).json({ success: false, message: 'Something went wrong' });
-                            console.log(err);
-                            //TODO: Fallback event entry
-                        }
-                        if (isLast === true) {
-                            if (isDelete === true) {
-                                removeExpenseEntry(options);
-                            } else {
-                                res.status(200).json({ message: "Expense added successfully" });
-                            }
-                            //TODO: Send email to payer and debtor on success
-                        }
-                    });
-
-                }
-            }
-        });
 };
 
-    /**
-     * Delete the expense from the main expense entry
-     */
+/**
+ * Delete the expense from the main expense entry
+ */
 
 function removeExpenseEntry(options) {
     Expense.findOneAndRemove({
         _id: options.req.body.expnId
-    }, function (err, expense) {
+    }, function(err, expense) {
         if (err) {
             console.log("Expense delete error:  " + err);
             options.res.status(500).json({ success: false, message: 'Expense not deleted' });
@@ -188,7 +212,7 @@ function removeExpenseEntry(options) {
 }
 
 function updateDebtBalance(options) {
-    return function () {
+    return function() {
         options.user.balance -= options.amount;
         options.user.save((err) => {
             if (err) {
@@ -213,7 +237,7 @@ function updateDebtBalance(options) {
  * Get all the expense for the given user, optionally with date range
  */
 
-exports.getExpense = function (req, res) {
+exports.getExpense = function(req, res) {
 
     //"2016-09-24T23:44:56.366Z" date.toJSON()    
 
@@ -231,15 +255,15 @@ exports.getExpense = function (req, res) {
     if (req.body.start) {
         date = { "expenseDate": { "$gte": req.body.start, "$lt": req.body.end } };
     }
-    validate.isAdmin(req.userId, function (isAdmin) {
+    validate.isAdmin(req.userId, function(isAdmin) {
         if (isAdmin === true) {
-            Expense.find(date, {}, { limit: 10 }).sort('-expenseDate').lean().exec(function (err, users) {
+            Expense.find(date, {}, { limit: 10 }).sort('-expenseDate').lean().exec(function(err, users) {
                 if (err) {
                     console.log("Err: " + err);
                     res.status(500).json({ message: "Something went wrong" });
                 }
                 if (users.length > 0) {
-                    users.forEach(function (user) {
+                    users.forEach(function(user) {
                         user.isEditable = true;
                         user.isDeleteable = true;
                     });
@@ -247,11 +271,11 @@ exports.getExpense = function (req, res) {
                 res.status(200).json(users);
             });
         } else {
-            Expense.find(date, {}, { limit: 10 }).or([{ payerId: req.userId }, { 'debtor.debtId': req.userId }, { createdBy: req.userId }]).sort('-expenseDate').lean().exec(function (err, users) {
+            Expense.find(date, {}, { limit: 10 }).or([{ payerId: req.userId }, { 'debtor.debtId': req.userId }, { createdBy: req.userId }]).sort('-expenseDate').lean().exec(function(err, users) {
                 if (err) {
                     console.log("Err: " + err);
                 }
-                users.forEach(function (user) {
+                users.forEach(function(user) {
                     if (user.createdBy === req.userId) {
                         user.isEditable = true;
                         user.isDeleteable = true;
@@ -268,7 +292,7 @@ exports.getExpense = function (req, res) {
  * Delete the expense from the given user's balance
  */
 
-exports.deleteExpense = function (req, res, next) {
+exports.deleteExpense = function(req, res, next) {
     if (validate.isEmpty(req.body.expnId)) {
         res.status(400).json({ message: "Please send expense id to delete" })
     }
@@ -282,10 +306,9 @@ exports.deleteExpense = function (req, res, next) {
             req.body.totalAmount = expense.totalAmount;
             req.body.payerId = expense.payerId;
             req.isDelete = true;
-            updateExpenseforUser(req,res);
+            updateExpenseforUser(req, res);
         } else {
             res.status(404).json({ message: "expense not found with the given id" });
         }
     });
 };
-
