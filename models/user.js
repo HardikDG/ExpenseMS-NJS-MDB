@@ -35,7 +35,8 @@ var UserSchema = new Schema({
     isDeleted: {
         type: Boolean,
         default: false
-    }, 
+    },
+    userPic: String, 
     resetPasswordToken: String,
     resetPasswordExpires: Date
 }, {

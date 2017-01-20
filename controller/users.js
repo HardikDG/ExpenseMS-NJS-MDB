@@ -12,12 +12,9 @@ const upload = multer({ dest: 'uploads/' })
 const superagent = require('superagent');
 const async = require('async');
 const crypto = require('crypto');
+const gravatar = require('gravatar');
 const utils = require('../helper/utils');
 const saltRounds = 5;
-
-var mailchimpInstance = 'us14',
-    listUniqueId = 'd974dea8d2',
-    mailchimpApiKey = '5a5a25fb6be75801c68330300cf4dd11-us14';
 
 var userExclusion = {
     __v: false,
@@ -67,9 +64,9 @@ exports.register = function (req, res) {
 
     // mailchimp mail subscription
     superagent
-        .post('https://' + mailchimpInstance + '.api.mailchimp.com/3.0/lists/' + listUniqueId + '/members/')
+        .post('https://' + secret_const.MAILCHIMP.SERVER_INSTANCE + '.api.mailchimp.com/3.0/lists/' + secret_const.MAILCHIMP.LIST_UNIQUE_ID + '/members/')
         .set('Content-Type', 'application/json;charset=utf-8')
-        .set('Authorization', 'Basic ' + new Buffer('any:' + mailchimpApiKey).toString('base64'))
+        .set('Authorization', 'Basic ' + new Buffer('any:' + secret_const.MAILCHIMP.API_KEY).toString('base64'))
         .send({
             'email_address': req.body.email,
             'status': 'subscribed',
@@ -86,19 +83,6 @@ exports.register = function (req, res) {
                 res.send('Sign Up Failed :(');
             }
         });
-
-    // var upload = multer().single('avatar');
-    // console.log("File received");
-    // upload(req, res, function (err) {
-    //     if (err) {
-    //         // An error occurred when uploading 
-    //         console.log("Error while uploading image" + err);
-    //         return
-    //     } else {
-    //         console.log("File saved");
-    //     }
-    //     // Everything went fine 
-    // })
 
     if (validate.isEmpty(req.body.email) || !validate.isEmail(req.body.email)) {
         res.status(400).json({ success: false, message: 'Please enter valid email' });
@@ -129,16 +113,19 @@ exports.register = function (req, res) {
             var password = hash;
             var admin = req.body.isAdmin || false;
 
+
+            var profileGravatar = gravatar.url(req.body.email, {s: '100', r: 'g', d: 'retro'}, true);
+
             var tempUserData = new User({
                 fullName: fullName,
                 email: email,
                 phone_no: phoneno,
                 password: password,
-                isAdmin: admin
+                isAdmin: admin,
+                userPic: profileGravatar
             });
             tempUserData.save(function (err, createdUser) {
                 if (err) {
-                    console.log("Error: " + err);
                     res.json({ success: false, message: 'User not created!!!' });
                 }
                 console.log(createdUser);
@@ -227,8 +214,8 @@ exports.forgetPassword_old = function (req, res) {
             var transporter = nodemailer.createTransport({
                 service: 'gmail',
                 auth: {
-                    user: 'your email',
-                    pass: 'your Password'
+                    user: secret_const.MAIL_CONFIG.EMAIL,
+                    pass: secret_const.MAIL_CONFIG.PASSWORD
                 }
             });
 
