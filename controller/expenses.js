@@ -102,92 +102,81 @@ function updateExpenseforUser(req, res) {
     let debt = req.updatedDebt;
     var debtIds = _.map(debt, 'debtId');
 
-    async.waterfall([
-        function(req, done) {
-            User.findById(req.body.payerId, (err, user) => {
-                if (err) {
-                    res.status(404).json({ success: false, message: 'No used found with the given payerId' });
-                }
-                if (user) {
-                    if (req.isDelete === true) {
-                        user.balance -= Number(req.body.totalAmount);
-                    } else {
-                        console.log("old balance: " + user.balance);
-                        user.balance += Number(req.body.totalAmount);
-                        console.log("New balance: " + user.balance);
-                    }
-                    user.save((err) => {
-                        if (err) {
-                            console.log("Save error " + err);
-                            res.status(500).json({ success: false, message: 'Something went wrong' });
-                        }
-                        done(req);
-                        console.log("Expense added in " + req.body.payerId);
-                    });
-                } else {
-                    res.status(404).json({ success: false, message: 'No user found with the given payerId' });
-                }
-            });
-        },
-        function(req) {
-            User.find()
-                .where('_id')
-                .in(debtIds)
-                .exec(function(err, users) {
-                    if (err) {
-                        res.send(err);
-                    }
-                    if (users.length > 0) {
-                        for (i = 0; i < users.length; i++) {
-                            let obj = _.find(debt, { 'debtId': users[i]._id.toString() });
-                            // console.log("ID :" + obj.debtId + "  Amount:  " + obj.amount);
-                            let isLast = false;
-                            let isDelete = false;
-                            if (i === users.length - 1) {
-                                isLast = true;
-                            }
-                            if (req.isDelete === true) {
-                                isDelete = true;
-                                obj.amount = -Math.abs(obj.amount);
-                            }
-
-                            let options = {
-                                user: users[i],
-                                amount: obj.amount,
-                                res: res,
-                                isLast: isLast,
-                                isDelete: isDelete,
-                                req: req
-                            }
-
-                            console.log("Prev Amt: " + users[i].balance);
-                            users[i].balance -= obj.amount;
-                            console.log("New Amt: " + users[i].balance + " Obj Amt: " + obj.amount);
-                            users[i].save((err) => {
-                                if (err) {
-                                    res.status(500).json({ success: false, message: 'Something went wrong' });
-                                    console.log(err);
-                                    //TODO: Fallback event entry
-                                }
-                                if (isLast === true) {
-                                    if (isDelete === true) {
-                                        removeExpenseEntry(options);
-                                    } else {
-                                        res.status(200).json({ message: "Expense added successfully" });
-                                    }
-                                    //TODO: Send email to payer and debtor on success
-                                }
-                            });
-                        }
-                    }
-                });
+    User.findById(req.body.payerId, (err, user) => {
+        if (err) {
+            res.status(404).json({ success: false, message: 'No used found with the given payerId' });
         }
-    ], function(error, success) {
-        if (error) { res.status(500).json({ message: "Error while adding expense " }); }
-        console.log("Error in add expense: " + error);
+        if (user) {
+            if (req.isDelete === true) {
+                user.balance -= Number(req.body.totalAmount);
+            } else {
+                console.log("old balance: " + user.balance);
+                user.balance += Number(req.body.totalAmount);
+                console.log("New balance: " + user.balance);
+            }
+            user.save((err) => {
+                if (err) {
+                    console.log("Save error " + err);
+                    res.status(500).json({ success: false, message: 'Something went wrong' });
+                }
+                console.log("Expense added in " + req.body.payerId);
+            });
+        } else {
+            res.status(404).json({ success: false, message: 'No user found with the given payerId' });
+        }
     });
 
+    User.find()
+        .where('_id')
+        .in(debtIds)
+        .exec(function(err, users) {
+            if (err) {
+                res.send(err);
+            }
+            if (users.length > 0) {
+                for (i = 0; i < users.length; i++) {
+                    let obj = _.find(debt, { 'debtId': users[i]._id.toString() });
+                    // console.log("ID :" + obj.debtId + "  Amount:  " + obj.amount);
+                    let isLast = false;
+                    let isDelete = false;
+                    if (i === users.length - 1) {
+                        isLast = true;
+                    }
+                    if (req.isDelete === true) {
+                        isDelete = true;
+                        obj.amount = -Math.abs(obj.amount);
+                    }
 
+                    let options = {
+                        user: users[i],
+                        amount: obj.amount,
+                        res: res,
+                        isLast: isLast,
+                        isDelete: isDelete,
+                        req: req
+                    }
+
+                    console.log("Prev Amt: " + users[i].balance);
+                    users[i].balance -= obj.amount;
+                    console.log("New Amt: " + users[i].balance + " Obj Amt: " + obj.amount);
+                    users[i].save((err) => {
+                        if (err) {
+                            res.status(500).json({ success: false, message: 'Something went wrong' });
+                            console.log(err);
+                            //TODO: Fallback event entry
+                        }
+                        if (isLast === true) {
+                            if (isDelete === true) {
+                                removeExpenseEntry(options);
+                            } else {
+                                res.status(200).json({ message: "Expense added successfully" });
+                            }
+                            //TODO: Send email to payer and debtor on success
+                        }
+                    });
+                }
+            }
+        });
 };
 
 /**
