@@ -12,6 +12,7 @@ const async = require('async');
 const crypto = require('crypto');
 const gravatar = require('gravatar');
 const utils = require('../helper/utils');
+const multer = require('multer')
 const saltRounds = 5;
 
 var userExclusion = {

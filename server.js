@@ -4,8 +4,7 @@ const MongoClient = require('mongodb').MongoClient;
 const mongoose = require('mongoose');
 // const config = require('./config'); // get our config file
 const bodyParser = require('body-parser');
-const morgan = require('morgan');
-const multer = require('multer')
+const morgan = require('morgan')
 
 //Environment configration
 var config = require('./config/env/development');
@@ -51,7 +50,7 @@ db.once('open', function() {
     console.log('✓ MongoDB connection established!');
 });
 
-// app.post('/test', multer({ dest: './uploads' }).single('avatar'), function(req, res) {
+// app.post('/test1', multer({ dest: './uploads' }).single('avatar'), function(req, res) {
 //     console.log(req.body); //form fields
 
 //     // console.log(req.file); //form files
@@ -66,7 +65,8 @@ var storage = multer.diskStorage({
     },
     filename: function(request, file, callback) {
         console.log(file);
-        callback(null, file.originalname)
+        let name = file.fieldname + new Date().getTime();
+        callback(null, name)
     }
 });
 
@@ -75,11 +75,11 @@ var upload = multer({ storage: storage }).single('avatar');
 app.post('/test', function(request, response) {
     upload(request, response, function(err) {
         if (err) {
-            console.log('Error Occured');
+            console.log('Error Occured ' + err);
             return;
         }
         console.log(request.file);
-        response.end('Your File Uploaded');
+        response.status(200).json({ success: true, message: 'Photo uploaded' });
         console.log('Photo Uploaded');
     })
 });
